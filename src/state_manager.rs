@@ -10,17 +10,9 @@ pub struct ProjectState {
     pub last_updated: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GlobalState {
     pub projects: HashMap<String, ProjectState>,
-}
-
-impl Default for GlobalState {
-    fn default() -> Self {
-        Self {
-            projects: HashMap::new(),
-        }
-    }
 }
 
 pub struct StateManager {
@@ -84,7 +76,9 @@ impl StateManager {
                 .as_secs(),
         };
 
-        global_state.projects.insert(self.project_key.clone(), project_state);
+        global_state
+            .projects
+            .insert(self.project_key.clone(), project_state);
 
         let content = toml::to_string_pretty(&global_state)?;
         fs::write(&self.state_file, content)?;

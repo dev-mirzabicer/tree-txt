@@ -1,11 +1,11 @@
 use anyhow::Result;
 use ratatui::crossterm::{
-    event::{read, Event, KeyCode, KeyEventKind, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
+    event::{Event, KeyCode, KeyEventKind, KeyModifiers, read},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, BorderType, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
 use std::collections::HashSet;
 use std::fs;
 use std::io::stdout;
@@ -19,7 +19,6 @@ pub struct FileItem {
     pub is_selected: bool,
     pub is_expanded: bool,
     pub depth: usize,
-    pub parent_path: Option<PathBuf>,
 }
 
 pub struct FileSelector {
@@ -41,7 +40,7 @@ impl FileSelector {
             show_hidden: false,
             expanded_dirs: HashSet::new(),
         };
-        
+
         // Initially expand the base directory
         selector.expanded_dirs.insert(base_path.to_path_buf());
         selector.refresh_items().unwrap_or(());
@@ -57,14 +56,31 @@ impl FileSelector {
     fn refresh_items(&mut self) -> Result<()> {
         self.items.clear();
         let base_path = self.base_path.clone();
-        self.build_tree(&base_path, 0, None)?;
+
+        // Validate base path still exists
+        if !base_path.exists() {
+            return Err(anyhow::anyhow!(
+                "Base directory no longer exists: {}",
+                base_path.display()
+            ));
+        }
+
+        self.build_tree(&base_path, 0, None)
+            .map_err(|e| anyhow::anyhow!("Failed to read directory structure: {}", e))?;
         self.update_item_selections();
         Ok(())
     }
 
-    fn build_tree(&mut self, dir_path: &Path, depth: usize, parent_path: Option<PathBuf>) -> Result<()> {
-        // Read directory contents
-        let entries = fs::read_dir(dir_path)?;
+    fn build_tree(
+        &mut self,
+        dir_path: &Path,
+        depth: usize,
+        _parent_path: Option<PathBuf>,
+    ) -> Result<()> {
+        // Read directory contents with better error handling
+        let entries = fs::read_dir(dir_path).map_err(|e| {
+            anyhow::anyhow!("Cannot read directory '{}': {}", dir_path.display(), e)
+        })?;
         let mut items: Vec<_> = entries
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
@@ -93,7 +109,7 @@ impl FileSelector {
             let is_dir = path.is_dir();
             let is_expanded = is_dir && self.expanded_dirs.contains(&path);
             let is_selected = !is_dir && self.selected_files.contains(&path);
-            
+
             self.items.push(FileItem {
                 path: path.clone(),
                 name,
@@ -101,7 +117,6 @@ impl FileSelector {
                 is_selected,
                 is_expanded,
                 depth,
-                parent_path: parent_path.clone(),
             });
 
             // Recursively build tree for expanded directories
@@ -192,25 +207,26 @@ impl FileSelector {
     fn render_ui(&self, f: &mut Frame) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(4),
-            ])
+            .constraints([Constraint::Min(0), Constraint::Length(4)])
             .split(f.area());
 
         // Create list items with visual indicators and tree structure
-        let items: Vec<ListItem> = self.items
+        let items: Vec<ListItem> = self
+            .items
             .iter()
             .map(|item| {
                 let mut style = Style::default();
-                
+
                 // Create indentation based on depth
                 let indent = "  ".repeat(item.depth);
-                
+
                 let (prefix, suffix) = if item.is_dir {
                     style = style.fg(Color::Cyan).add_modifier(Modifier::BOLD);
                     let expand_indicator = if item.is_expanded { "▼ " } else { "▶ " };
-                    (format!("{}📁 {}", expand_indicator, item.name), "/".to_string())
+                    (
+                        format!("{}📁 {}", expand_indicator, item.name),
+                        "/".to_string(),
+                    )
                 } else if item.is_selected {
                     style = style.fg(Color::Green).add_modifier(Modifier::BOLD);
                     ("✓ ".to_string(), item.name.clone())
@@ -219,11 +235,7 @@ impl FileSelector {
                     ("  ".to_string(), item.name.clone())
                 };
 
-                let display_text = if item.is_dir {
-                    format!("{}{}{}", indent, prefix, suffix)
-                } else {
-                    format!("{}{}{}", indent, prefix, suffix)
-                };
+                let display_text = format!("{indent}{prefix}{suffix}");
 
                 ListItem::new(display_text).style(style)
             })
@@ -235,12 +247,12 @@ impl FileSelector {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .title(format!("Files in: {}", self.base_path.display()))
+                    .title(format!("Files in: {}", self.base_path.display())),
             )
             .highlight_style(
                 Style::default()
                     .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::BOLD),
             )
             .highlight_symbol("> ");
 
@@ -249,15 +261,14 @@ impl FileSelector {
         // Render help and status
         let selected_count = self.selected_files.len();
         let help_text = format!(
-            "Selected: {} files | SPACE=select/select dir | →=expand | ←=collapse | ENTER=confirm | ↑↓=navigate | Ctrl+A=select all | Ctrl+D=clear | Ctrl+H=toggle hidden | Q=quit",
-            selected_count
+            "Selected: {selected_count} files | SPACE=select/select dir | →=expand | ←=collapse | ENTER=confirm | ↑↓=navigate | Ctrl+A=select all | Ctrl+D=clear | Ctrl+H=toggle hidden | Q=quit"
         );
-        
+
         let status_paragraph = Paragraph::new(help_text)
             .block(Block::default().borders(Borders::ALL).title("Controls"))
             .style(Style::default().fg(Color::Yellow))
             .wrap(ratatui::widgets::Wrap { trim: true });
-        
+
         f.render_widget(status_paragraph, chunks[1]);
     }
 
@@ -290,7 +301,7 @@ impl FileSelector {
             if selected < self.items.len() {
                 let item_path = self.items[selected].path.clone();
                 let is_dir = self.items[selected].is_dir;
-                
+
                 if is_dir {
                     // Select all visible files in this directory
                     self.select_directory_files(&item_path);
@@ -310,10 +321,10 @@ impl FileSelector {
     fn select_directory_files(&mut self, dir_path: &Path) {
         // Get all files in directory recursively (not just visible ones)
         let files_in_dir: Vec<PathBuf> = self.get_all_files_in_directory(dir_path);
-        
+
         // Check if all files in this directory are already selected
         let all_selected = files_in_dir.iter().all(|f| self.selected_files.contains(f));
-        
+
         if all_selected {
             // Deselect all files in this directory
             for file_path in files_in_dir {
@@ -325,55 +336,41 @@ impl FileSelector {
                 self.selected_files.insert(file_path);
             }
         }
-        
-        self.refresh_items().unwrap_or(());
-    }
 
-    fn get_files_in_directory(&self, dir_path: &Path) -> Vec<PathBuf> {
-        let mut files = Vec::new();
-        
-        if let Ok(entries) = fs::read_dir(dir_path) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                
-                // Skip hidden files if not showing them
-                if !self.show_hidden && entry.file_name().to_string_lossy().starts_with('.') {
-                    continue;
-                }
-                
-                if path.is_file() {
-                    files.push(path);
-                } else if path.is_dir() && self.expanded_dirs.contains(&path) {
-                    // Recursively get files from expanded subdirectories
-                    files.extend(self.get_files_in_directory(&path));
-                }
-            }
-        }
-        
-        files
+        self.refresh_items().unwrap_or(());
     }
 
     fn get_all_files_in_directory(&self, dir_path: &Path) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        
-        if let Ok(entries) = fs::read_dir(dir_path) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                
-                // Skip hidden files if not showing them
-                if !self.show_hidden && entry.file_name().to_string_lossy().starts_with('.') {
-                    continue;
-                }
-                
-                if path.is_file() {
-                    files.push(path);
-                } else if path.is_dir() {
-                    // Recursively get ALL files from subdirectories (whether expanded or not)
-                    files.extend(self.get_all_files_in_directory(&path));
-                }
+
+        let entries = match fs::read_dir(dir_path) {
+            Ok(entries) => entries,
+            Err(e) => {
+                eprintln!(
+                    "Warning: Cannot read directory '{}': {}",
+                    dir_path.display(),
+                    e
+                );
+                return files;
+            }
+        };
+
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+
+            // Skip hidden files if not showing them
+            if !self.show_hidden && entry.file_name().to_string_lossy().starts_with('.') {
+                continue;
+            }
+
+            if path.is_file() {
+                files.push(path);
+            } else if path.is_dir() {
+                // Recursively get ALL files from subdirectories (whether expanded or not)
+                files.extend(self.get_all_files_in_directory(&path));
             }
         }
-        
+
         files
     }
 
