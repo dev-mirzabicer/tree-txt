@@ -8,6 +8,7 @@
 use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
+use std::path::Path;
 
 mod config;
 mod error;
@@ -165,15 +166,15 @@ fn main() -> Result<()> {
         .unwrap_or("codebase.txt");
 
     // Validate output file path
-    let output_path = std::path::Path::new(output_file);
+    let output_path = Path::new(output_file);
     if let Some(parent) = output_path.parent() {
-        if !parent.exists() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
             return Err(anyhow::anyhow!(
                 "Output directory does not exist: {}",
                 parent.display()
             ));
         }
-        if !parent.is_dir() {
+        if parent.exists() && !parent.is_dir() {
             return Err(anyhow::anyhow!(
                 "Output parent path is not a directory: {}",
                 parent.display()
