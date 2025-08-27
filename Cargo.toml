@@ -9,15 +9,7 @@ readme = "README.md"
 homepage = "https://github.com/dev-mirzabicer/tree-txt"
 repository = "https://github.com/dev-mirzabicer/tree-txt"
 documentation = "https://docs.rs/tree-txt"
-keywords = [
-  "cli",
-  "terminal",
-  "tui",
-  "file-selector",
-  "codebase",
-  "export",
-  "documentation",
-]
+keywords = ["cli", "terminal", "tui", "file-selector", "codebase"]
 categories = ["command-line-utilities", "development-tools", "text-processing"]
 exclude = [
   "target/",
