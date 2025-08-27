@@ -20,50 +20,40 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         rust: [stable, beta]
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
-        components: rustfmt, clippy
-        
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      
-    - name: Check formatting
-      run: cargo fmt --all -- --check
-      
-    - name: Run Clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
-      
-    - name: Run tests
-      run: cargo test --verbose
-      
-    - name: Build release
-      run: cargo build --release --verbose
+      - uses: actions/checkout@v5
+
+      # When passing the "toolchain" input, use @master (per README)
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Build release
+        run: cargo build --release --verbose
 
   security:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-      
-    - name: Run security audit
-      run: cargo audit
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+      - name: Run security audit
+        run: cargo audit
 
   build-binaries:
     name: Build Release Binaries
@@ -75,174 +65,144 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary-suffix: ""
-          - os: ubuntu-latest  
+            archive_ext: .tar.gz
+            bin_suffix: ""
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            binary-suffix: ""
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            binary-suffix: ""
+            archive_ext: .tar.gz
+            bin_suffix: ""
           - os: macos-latest
             target: aarch64-apple-darwin
-            binary-suffix: ""
+            archive_ext: .tar.gz
+            bin_suffix: ""
+          # If you need x86_64 macOS reliably, consider macos-13:
+          # - os: macos-13
+          #   target: x86_64-apple-darwin
+          #   archive_ext: .tar.gz
+          #   bin_suffix: ""
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary-suffix: ".exe"
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
-        
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      
-    - name: Install cross-compilation tools (Linux ARM64)
-      if: matrix.target == 'aarch64-unknown-linux-gnu'
-      run: |
-        sudo apt update
-        sudo apt install -y gcc-aarch64-linux-gnu
-        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-        
-    - name: Build release binary
-      run: cargo build --release --target ${{ matrix.target }}
-      
-    - name: Create release archive
-      shell: bash
-      run: |
-        binary_name="tree-txt${{ matrix.binary-suffix }}"
-        archive_name="tree-txt-${{ github.ref_name }}-${{ matrix.target }}"
-        
-        mkdir -p "dist/$archive_name"
-        cp "target/${{ matrix.target }}/release/$binary_name" "dist/$archive_name/"
-        cp README.md "dist/$archive_name/"
-        cp LICENSE "dist/$archive_name/"
-        
-        cd dist
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          7z a "${archive_name}.zip" "$archive_name"
-          echo "ASSET=${archive_name}.zip" >> $GITHUB_ENV
-        else
-          tar czf "${archive_name}.tar.gz" "$archive_name"
-          echo "ASSET=${archive_name}.tar.gz" >> $GITHUB_ENV
-        fi
-        
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: dist/${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+            archive_ext: .zip
+            bin_suffix: .exe
 
-  publish-crates:
-    name: Publish to crates.io
-    needs: [test, security]
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      
-    - name: Publish to crates.io
-      run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
 
-  update-homebrew:
-    name: Update Homebrew Formula
-    needs: [build-binaries]
-    if: github.event_name == 'release'
-    runs-on: macos-latest
-    
-    steps:
-    - name: Extract version
-      id: extract_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
-    - name: Update Homebrew formula
-      uses: dawidd6/action-homebrew-bump-formula@v3
-      with:
-        token: ${{ secrets.HOMEBREW_TOKEN }}
-        formula: tree-txt
-        tag: ${{ github.ref }}
-        force: false
+      # OPTIONAL (better cross-linking / glibc pin): use cargo-zigbuild instead of plain cargo
+      # - name: Install cargo-zigbuild
+      #   if: startsWith(matrix.target, 'x86_64-unknown-linux') || startsWith(matrix.target, 'aarch64-unknown-linux')
+      #   run: |
+      #     pip3 install ziglang
+      #     cargo install --locked cargo-zigbuild
+
+      # Linux ARM64 cross toolchain (only if not using cargo-zigbuild/cross)
+      - name: Install cross-compile linker (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
+      - name: Build
+        run: |
+          if [[ "${{ matrix.target }}" == *linux* ]]; then
+            cargo build --release --target ${{ matrix.target }}
+            # or: cargo zigbuild --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package archive
+        shell: bash
+        run: |
+          BIN="tree-txt${{ matrix.bin_suffix }}"
+          TGT="${{ matrix.target }}"
+          VER="${{ github.event.release.tag_name || github.ref_name }}"
+          ARCHIVE="tree-txt-${VER}-${TGT}"
+
+          mkdir -p "dist/$ARCHIVE"
+          cp "target/${TGT}/release/${BIN}" "dist/$ARCHIVE/"
+          cp README.md "dist/$ARCHIVE/"
+          cp LICENSE "dist/$ARCHIVE/"
+          cd dist
+
+          if [[ "${{ matrix.archive_ext }}" == ".zip" ]]; then
+            # Use PowerShell on Windows to avoid relying on 7-Zip presence
+            pwsh -NoLogo -NoProfile -Command "Compress-Archive -Path '$ARCHIVE/*' -DestinationPath '${ARCHIVE}.zip'"
+          else
+            tar czf "${ARCHIVE}.tar.gz" "$ARCHIVE"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tree-txt-${{ github.event.release.tag_name || github.ref_name }}-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
 
   create-linux-packages:
     name: Create Linux Packages
     needs: [build-binaries]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Download Linux binary
-      uses: actions/download-artifact@v3
-      with:
-        name: tree-txt-x86_64-unknown-linux-gnu
-        path: ./binary
-        
-    - name: Install packaging tools
-      run: |
-        sudo apt update
-        sudo apt install -y rpm alien
-        
-    - name: Create DEB package
-      run: |
-        mkdir -p tree-txt-deb/usr/bin
-        mkdir -p tree-txt-deb/usr/share/doc/tree-txt
-        
-        cp binary/tree-txt tree-txt-deb/usr/bin/
-        cp README.md tree-txt-deb/usr/share/doc/tree-txt/
-        cp LICENSE tree-txt-deb/usr/share/doc/tree-txt/
-        
-        mkdir -p tree-txt-deb/DEBIAN
-        cat > tree-txt-deb/DEBIAN/control << EOF
-        Package: tree-txt
-        Version: ${{ github.ref_name }}
-        Architecture: amd64
-        Maintainer: Mirza Bicer <dev-mirzabicer@users.noreply.github.com>
-        Description: Interactive file selector and codebase exporter
-         Generate beautiful, formatted text files from your project structure
-         with an intuitive terminal interface.
-        EOF
-        
-        dpkg-deb --build tree-txt-deb
-        mv tree-txt-deb.deb tree-txt-${{ github.ref_name }}-amd64.deb
-        
-    - name: Create RPM package
-      run: |
-        alien -r tree-txt-${{ github.ref_name }}-amd64.deb
-        
-    - name: Upload DEB package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: tree-txt-${{ github.ref_name }}-amd64.deb
-        asset_name: tree-txt-${{ github.ref_name }}-amd64.deb
-        asset_content_type: application/vnd.debian.binary-package
-        
-    - name: Upload RPM package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: tree-txt-${{ github.ref_name }}-2.x86_64.rpm
-        asset_name: tree-txt-${{ github.ref_name }}-x86_64.rpm
-        asset_content_type: application/x-rpm
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: tree-txt-${{ github.event.release.tag_name || github.ref_name }}-x86_64-unknown-linux-gnu
+          path: ./binary
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          cargo install --locked cargo-deb
+          cargo install --locked cargo-generate-rpm
+
+      # Build proper packages from Cargo metadata instead of hand-rolling control files:
+      - name: Build DEB
+        run: cargo deb --no-build --target x86_64-unknown-linux-gnu --output ./
+      - name: Build RPM
+        run: cargo generate-rpm --target x86_64-unknown-linux-gnu --output ./
+
+      - name: Upload packages to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./*.deb
+            ./*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: [test, security]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: [build-binaries]
+    if: github.event_name == 'release'
+    runs-on: macos-latest
+    steps:
+      - name: Update formula in tap/core
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          tap: dev-mirzabicer/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TOKEN }}
+          formula: tree-txt
+          tag: ${{ github.ref }}
+          force: false
