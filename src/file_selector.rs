@@ -175,16 +175,10 @@ impl FileSelector {
                             self.refresh_items()?;
                         }
                         KeyCode::Down | KeyCode::Char('j') => {
-                            let selected = self.list_state.selected().unwrap_or(0);
-                            if selected < self.items.len().saturating_sub(1) {
-                                self.list_state.select(Some(selected + 1));
-                            }
+                            self.move_selection_down();
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
-                            let selected = self.list_state.selected().unwrap_or(0);
-                            if selected > 0 {
-                                self.list_state.select(Some(selected - 1));
-                            }
+                            self.move_selection_up();
                         }
                         _ => {}
                     }
@@ -314,11 +308,24 @@ impl FileSelector {
     }
 
     fn select_directory_files(&mut self, dir_path: &Path) {
-        // Find all files in this directory (and subdirectories if expanded) and select them
-        let files_to_select: Vec<PathBuf> = self.get_files_in_directory(dir_path);
-        for file_path in files_to_select {
-            self.selected_files.insert(file_path);
+        // Get all files in directory recursively (not just visible ones)
+        let files_in_dir: Vec<PathBuf> = self.get_all_files_in_directory(dir_path);
+        
+        // Check if all files in this directory are already selected
+        let all_selected = files_in_dir.iter().all(|f| self.selected_files.contains(f));
+        
+        if all_selected {
+            // Deselect all files in this directory
+            for file_path in files_in_dir {
+                self.selected_files.remove(&file_path);
+            }
+        } else {
+            // Select all files in this directory
+            for file_path in files_in_dir {
+                self.selected_files.insert(file_path);
+            }
         }
+        
         self.refresh_items().unwrap_or(());
     }
 
@@ -346,6 +353,30 @@ impl FileSelector {
         files
     }
 
+    fn get_all_files_in_directory(&self, dir_path: &Path) -> Vec<PathBuf> {
+        let mut files = Vec::new();
+        
+        if let Ok(entries) = fs::read_dir(dir_path) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                
+                // Skip hidden files if not showing them
+                if !self.show_hidden && entry.file_name().to_string_lossy().starts_with('.') {
+                    continue;
+                }
+                
+                if path.is_file() {
+                    files.push(path);
+                } else if path.is_dir() {
+                    // Recursively get ALL files from subdirectories (whether expanded or not)
+                    files.extend(self.get_all_files_in_directory(&path));
+                }
+            }
+        }
+        
+        files
+    }
+
     fn select_all_files(&mut self) {
         // Select all visible files in the entire tree
         for item in &self.items {
@@ -359,5 +390,19 @@ impl FileSelector {
     fn deselect_all(&mut self) {
         self.selected_files.clear();
         self.refresh_items().unwrap_or(());
+    }
+
+    fn move_selection_down(&mut self) {
+        let selected = self.list_state.selected().unwrap_or(0);
+        if selected < self.items.len().saturating_sub(1) {
+            self.list_state.select(Some(selected + 1));
+        }
+    }
+
+    fn move_selection_up(&mut self) {
+        let selected = self.list_state.selected().unwrap_or(0);
+        if selected > 0 {
+            self.list_state.select(Some(selected - 1));
+        }
     }
 }
