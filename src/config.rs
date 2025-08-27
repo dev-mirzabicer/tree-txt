@@ -23,7 +23,7 @@
 //! ```
 //!
 //! Load from a TOML file:
-//! ```rust
+//! ```rust,no_run
 //! use tree_txt::Config;
 //!
 //! let config = Config::from_file("config.toml")?;
@@ -98,7 +98,7 @@ impl Config {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use tree_txt::Config;
     ///
     /// let config = Config::from_file("tree-txt.toml")?;
