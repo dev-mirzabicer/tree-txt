@@ -21,7 +21,7 @@
 //!     include_file_contents: true,
 //!     ..Default::default()
 //! };
-//! 
+//!
 //! let files = vec![Path::new("src/main.rs").to_path_buf()];
 //! generator.generate_with_config(
 //!     Path::new("."),
@@ -53,7 +53,7 @@ impl OutputGenerator {
     ///
     /// ```rust
     /// use tree_txt::OutputGenerator;
-    /// 
+    ///
     /// let generator = OutputGenerator::new();
     /// ```
     pub fn new() -> Self {
@@ -81,7 +81,7 @@ impl OutputGenerator {
     /// let generator = OutputGenerator::new();
     /// let config = OutputFormat::default();
     /// let files = vec![Path::new("README.md").to_path_buf()];
-    /// 
+    ///
     /// generator.generate_with_config(
     ///     Path::new("."),
     ///     &files,

@@ -22,24 +22,24 @@ use output_generator::OutputGenerator;
 use state_manager::StateManager;
 
 /// Main entry point for the Tree-TXT CLI application.
-/// 
+///
 /// Parses command-line arguments and either launches the interactive file selector
 /// or processes files according to a configuration file.
-/// 
+///
 /// # Examples
-/// 
+///
 /// Run interactively:
 /// ```bash
 /// tree-txt
 /// ```
-/// 
+///
 /// Use configuration file:
 /// ```bash  
 /// tree-txt -c config.toml -o output.txt
 /// ```
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if:
 /// - Current directory is not accessible
 /// - Configuration file is invalid or not found

@@ -1,6 +1,6 @@
 //! # Tree-TXT
 //!
-//! **Interactive file selector and codebase exporter** for generating beautiful, 
+//! **Interactive file selector and codebase exporter** for generating beautiful,
 //! formatted text files from your project structure.
 //!
 //! Tree-TXT provides both a command-line interface and programmatic API for:
@@ -19,7 +19,7 @@
 //! let generator = OutputGenerator::new();
 //! let config = OutputFormat::default();
 //! let files = vec![Path::new("src/main.rs").to_path_buf()];
-//! 
+//!
 //! generator.generate_with_config(
 //!     Path::new("."),
 //!     &files,
@@ -54,7 +54,7 @@ pub mod state_manager;
 
 // Re-export main types for convenience
 pub use config::{Config, OutputFormat};
-pub use error::{TreeTxtError, Result};
-pub use file_selector::{FileSelector, FileItem};
+pub use error::{Result, TreeTxtError};
+pub use file_selector::{FileItem, FileSelector};
 pub use output_generator::OutputGenerator;
-pub use state_manager::{StateManager, ProjectState, GlobalState};
+pub use state_manager::{GlobalState, ProjectState, StateManager};
