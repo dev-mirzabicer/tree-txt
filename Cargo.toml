@@ -2,6 +2,32 @@
 name = "tree-txt"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mirza Bicer"]
+description = "Interactive file selector and codebase exporter - Generate beautiful, formatted text files from your project structure with an intuitive terminal interface"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/dev-mirzabicer/tree-txt"
+repository = "https://github.com/dev-mirzabicer/tree-txt"
+documentation = "https://docs.rs/tree-txt"
+keywords = [
+  "cli",
+  "terminal",
+  "tui",
+  "file-selector",
+  "codebase",
+  "export",
+  "documentation",
+]
+categories = ["command-line-utilities", "development-tools", "text-processing"]
+exclude = [
+  "target/",
+  ".git/",
+  ".gitignore",
+  "*.tmp",
+  "*.bak",
+  "/tmp/",
+  "/test-data/",
+]
 
 [dependencies]
 anyhow = "1.0.99"

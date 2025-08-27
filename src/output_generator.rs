@@ -1,18 +1,103 @@
+//! # Output Generator
+//!
+//! Generates formatted text exports from selected files with customizable layouts.
+//!
+//! The [`OutputGenerator`] creates beautiful, structured text files containing:
+//! - Project headers with metadata
+//! - Directory tree visualization  
+//! - File contents with optional line numbers
+//! - Customizable separators and formatting
+//!
+//! # Examples
+//!
+//! ```rust
+//! use tree_txt::{OutputGenerator, OutputFormat};
+//! use std::path::Path;
+//!
+//! let generator = OutputGenerator::new();
+//! let config = OutputFormat {
+//!     include_line_numbers: true,
+//!     include_tree: true,
+//!     include_file_contents: true,
+//!     ..Default::default()
+//! };
+//! 
+//! let files = vec![Path::new("src/main.rs").to_path_buf()];
+//! generator.generate_with_config(
+//!     Path::new("."),
+//!     &files,
+//!     "export.txt",
+//!     &config,
+//! )?;
+//! # Ok::<(), anyhow::Error>(())
+//! ```
+
 use crate::config::OutputFormat;
 use anyhow::Result;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Generator for formatted text exports from file collections.
+///
+/// Creates structured output with headers, directory trees, and file contents
+/// according to the specified configuration.
 pub struct OutputGenerator {
     // Configuration options can be added here later
 }
 
 impl OutputGenerator {
+    /// Creates a new output generator instance.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tree_txt::OutputGenerator;
+    /// 
+    /// let generator = OutputGenerator::new();
+    /// ```
     pub fn new() -> Self {
         Self {}
     }
 
+    /// Generates a formatted text export from the selected files.
+    ///
+    /// Creates a structured output file containing project metadata, directory tree,
+    /// and file contents according to the provided configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_path` - Base directory for resolving relative paths
+    /// * `selected_files` - Collection of files to include in the export
+    /// * `output_file` - Path where the generated content will be written
+    /// * `config` - Configuration controlling output format and content
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tree_txt::{OutputGenerator, OutputFormat};
+    /// use std::path::Path;
+    ///
+    /// let generator = OutputGenerator::new();
+    /// let config = OutputFormat::default();
+    /// let files = vec![Path::new("README.md").to_path_buf()];
+    /// 
+    /// generator.generate_with_config(
+    ///     Path::new("."),
+    ///     &files,
+    ///     "output.txt",
+    ///     &config,
+    /// )?;
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Any selected file cannot be read
+    /// - The output file cannot be written
+    /// - Directory traversal fails
+    /// - Insufficient permissions
     pub fn generate_with_config(
         &self,
         base_path: &Path,

@@ -1,3 +1,10 @@
+//! # Tree-TXT CLI Application
+//!
+//! Interactive file selector and codebase exporter with terminal user interface.
+//!
+//! This binary provides a command-line interface for Tree-TXT functionality,
+//! including interactive file selection and batch processing via configuration files.
+
 use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
@@ -14,6 +21,31 @@ use file_selector::FileSelector;
 use output_generator::OutputGenerator;
 use state_manager::StateManager;
 
+/// Main entry point for the Tree-TXT CLI application.
+/// 
+/// Parses command-line arguments and either launches the interactive file selector
+/// or processes files according to a configuration file.
+/// 
+/// # Examples
+/// 
+/// Run interactively:
+/// ```bash
+/// tree-txt
+/// ```
+/// 
+/// Use configuration file:
+/// ```bash  
+/// tree-txt -c config.toml -o output.txt
+/// ```
+/// 
+/// # Errors
+/// 
+/// Returns an error if:
+/// - Current directory is not accessible
+/// - Configuration file is invalid or not found
+/// - No files are selected for export
+/// - Output directory is not writable
+/// - File generation fails
 fn main() -> Result<()> {
     let matches = Command::new("tree-txt")
         .version("0.1.0")
