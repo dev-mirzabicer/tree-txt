@@ -95,7 +95,15 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - name: Build
+      - name: Build (aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        shell: bash
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Build (other targets)
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
         shell: bash
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -114,7 +122,6 @@ jobs:
           cd dist
 
           if [[ "${{ matrix.archive_ext }}" == ".zip" ]]; then
-            # Use PowerShell on Windows to avoid relying on 7-Zip presence
             pwsh -NoLogo -NoProfile -Command "Compress-Archive -Path '$ARCHIVE/*' -DestinationPath '${ARCHIVE}.zip'"
           else
             tar czf "${ARCHIVE}.tar.gz" "$ARCHIVE"
