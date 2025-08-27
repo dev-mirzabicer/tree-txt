@@ -162,41 +162,41 @@ impl FileSelector {
 
             // Handle events
             let event = read()?;
-            if let Event::Key(key) = event {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') => break,
-                        KeyCode::Enter => {
-                            // ENTER always confirms selections
-                            return Ok(self.selected_files.iter().cloned().collect());
-                        }
-                        KeyCode::Char(' ') => {
-                            self.toggle_selection();
-                        }
-                        KeyCode::Right | KeyCode::Char('l') => {
-                            self.expand_current_directory();
-                        }
-                        KeyCode::Left => {
-                            self.collapse_current_directory();
-                        }
-                        KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            self.select_all_files();
-                        }
-                        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            self.deselect_all();
-                        }
-                        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            self.show_hidden = !self.show_hidden;
-                            self.refresh_items()?;
-                        }
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            self.move_selection_down();
-                        }
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            self.move_selection_up();
-                        }
-                        _ => {}
+            if let Event::Key(key) = event
+                && key.kind == KeyEventKind::Press
+            {
+                match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Enter => {
+                        // ENTER always confirms selections
+                        return Ok(self.selected_files.iter().cloned().collect());
                     }
+                    KeyCode::Char(' ') => {
+                        self.toggle_selection();
+                    }
+                    KeyCode::Right | KeyCode::Char('l') => {
+                        self.expand_current_directory();
+                    }
+                    KeyCode::Left => {
+                        self.collapse_current_directory();
+                    }
+                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.select_all_files();
+                    }
+                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.deselect_all();
+                    }
+                    KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.show_hidden = !self.show_hidden;
+                        self.refresh_items()?;
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        self.move_selection_down();
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.move_selection_up();
+                    }
+                    _ => {}
                 }
             }
         }
@@ -273,47 +273,47 @@ impl FileSelector {
     }
 
     fn expand_current_directory(&mut self) {
-        if let Some(selected) = self.list_state.selected() {
-            if selected < self.items.len() {
-                let item = &self.items[selected];
-                if item.is_dir && !item.is_expanded {
-                    self.expanded_dirs.insert(item.path.clone());
-                    self.refresh_items().unwrap_or(());
-                }
+        if let Some(selected) = self.list_state.selected()
+            && selected < self.items.len()
+        {
+            let item = &self.items[selected];
+            if item.is_dir && !item.is_expanded {
+                self.expanded_dirs.insert(item.path.clone());
+                self.refresh_items().unwrap_or(());
             }
         }
     }
 
     fn collapse_current_directory(&mut self) {
-        if let Some(selected) = self.list_state.selected() {
-            if selected < self.items.len() {
-                let item = &self.items[selected];
-                if item.is_dir && item.is_expanded {
-                    self.expanded_dirs.remove(&item.path);
-                    self.refresh_items().unwrap_or(());
-                }
+        if let Some(selected) = self.list_state.selected()
+            && selected < self.items.len()
+        {
+            let item = &self.items[selected];
+            if item.is_dir && item.is_expanded {
+                self.expanded_dirs.remove(&item.path);
+                self.refresh_items().unwrap_or(());
             }
         }
     }
 
     fn toggle_selection(&mut self) {
-        if let Some(selected) = self.list_state.selected() {
-            if selected < self.items.len() {
-                let item_path = self.items[selected].path.clone();
-                let is_dir = self.items[selected].is_dir;
+        if let Some(selected) = self.list_state.selected()
+            && selected < self.items.len()
+        {
+            let item_path = self.items[selected].path.clone();
+            let is_dir = self.items[selected].is_dir;
 
-                if is_dir {
-                    // Select all visible files in this directory
-                    self.select_directory_files(&item_path);
+            if is_dir {
+                // Select all visible files in this directory
+                self.select_directory_files(&item_path);
+            } else {
+                // Toggle individual file selection
+                if self.selected_files.contains(&item_path) {
+                    self.selected_files.remove(&item_path);
                 } else {
-                    // Toggle individual file selection
-                    if self.selected_files.contains(&item_path) {
-                        self.selected_files.remove(&item_path);
-                    } else {
-                        self.selected_files.insert(item_path);
-                    }
-                    self.refresh_items().unwrap_or(());
+                    self.selected_files.insert(item_path);
                 }
+                self.refresh_items().unwrap_or(());
             }
         }
     }
